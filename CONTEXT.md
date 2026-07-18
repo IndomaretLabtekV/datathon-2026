@@ -1,43 +1,46 @@
-# CONTEXT.md - Datathon Task 1: Peramalan Kecepatan Lalu Lintas
+# CONTEXT.md - Datathon Task 1: Peramalan Kecepatan Lalu Lintas (v2)
 
-Berkas ini adalah konteks tetap untuk seluruh sesi pengerjaan Task 1. Baca berkas ini secara penuh sebelum membuka `PROMPT_V1.md`.
-
----
-
-## 1. Ringkasan Kompetisi
-
-Lalu lintas tidak bergerak acak. Ia merespons jaringan jalan, waktu, dan peristiwa yang terjadi di kota (kecelakaan, penutupan jalan, cuaca, kerumunan) yang dideskripsikan lewat aliran teks.
-
-**Tugas**: berdasarkan riwayat kecepatan satu jam terakhir (15 *timestep*) pada 1.260 segmen jalan yang saling terhubung, ditambah teks peristiwa langsung, ramalkan kecepatan lalu lintas 20, 40, dan 60 menit ke depan.
-
-**Tiga sumber sinyal per sampel**:
-1. **Riwayat kecepatan** - jendela 15 *timestep* (satu jam) untuk seluruh 1.260 segmen.
-2. **Teks peristiwa** - deskripsi bahasa natural tentang kejadian di jaringan jalan, sejenis konteks yang dibaca dispatcher manusia sebelum memprediksi perubahan lalu lintas.
-3. **Jaringan jalan** - matriks adjacency 1.260 x 1.260 plus geometri dan metadata tiap segmen.
-
-**Target prediksi**: kecepatan (km/jam) tiap segmen jalan pada tiga horizon:
-- `h5` = +20 menit
-- `h10` = +40 menit
-- `h15` = +60 menit
-
-**Metrik evaluasi**: MSE, dirata-ratakan lintas semua sampel, horizon, dan segmen jalan.
-
-**Format submisi**: satu baris per (sampel, horizon, jalan), id berpola `test_{sample}_h{horizon}_r{road}`, contoh `test_00000_h5_r0`. Urutan id pada `sample_submission.csv` wajib dipertahankan persis.
+Berkas ini adalah konteks tetap untuk sesi lanjutan Task 1, dipakai di *session* Claude Code yang baru. Baca berkas ini secara penuh, lalu baca `Datathon_Task_1_Kaggle_Notebook_Plan.md` sebelum menulis kode apa pun.
 
 ---
 
-## 2. Kendala Waktu dan Konteks Eksekusi
+## 1. Status Progres Sampai Sekarang
 
-- Ronde 1 (penyisihan) berdurasi **5 jam**, jam 12.00 sampai 17.00.
-- `PROMPT_V1.md` adalah prompt baseline pertama, dieksekusi oleh **Claude Code menggunakan model Fable 5, effort xhigh**.
-- Ini bukan sesi eksplorasi bebas. Prioritas mutlak: satu pendekatan yang solid, terjustifikasi lewat EDA singkat, dan **jalan sampai selesai menghasilkan submisi valid**. Lebih baik satu pendekatan sederhana yang tuntas daripada pendekatan ambisius yang tidak sempat selesai.
-- *Compute* target akhir: **Kaggle, GPU T4x2** (dua unit NVIDIA T4, 16 GB VRAM masing-masing). Tidak ada asumsi ketersediaan GPU kelas atas (A100/H100). Model atau *batch size* yang menuntut VRAM besar berisiko OOM atau lambat, pertimbangkan ini saat memilih pendekatan.
+- **v1 sudah dibuat, dieksekusi, dan disubmit.** Pendekatan: LightGBM (fitur riwayat kecepatan + statistik graf + teks) mengikuti `PROMPT_V1.md`.
+- **Skor v1: 41.795.** Sebagai pembanding, sebuah rencana v2 terpisah (lihat bagian 3) melaporkan *shadow leaderboard*: baseline *persistence* sekitar `53,98`, baseline *mean-reversion* sekitar `41,65`, dan *mean-reversion* dengan *stride* 30 sekitar `40,16`. **v1 hanya sedikit lebih baik dari baseline naif *mean-reversion*.** Ini artinya v1 belum benar-benar mengeksploitasi sinyal graf jaringan jalan maupun teks peristiwa secara efektif, masih ada ruang perbaikan nyata untuk v2.
+- Notebook v1 (`datathon-task1-v1.ipynb` atau nama serupa di root/scratchpad) tetap tersedia sebagai referensi dan sebagai *fallback* yang terbukti valid, meskipun skornya biasa saja.
+- **Satu slot submisi sudah terpakai untuk v1.**
 
----
+## 2. Anggaran Kritis yang Tersisa
 
-## 3. Struktur Data
+- **Sisa waktu: sekitar 4 jam** dari total 5 jam ronde penyisihan.
+- **Sisa submisi: 4 kali.** Ini sangat terbatas. Jangan pernah submit tanpa bukti perbaikan yang meyakinkan dari validasi lokal/*shadow* CV (bukan asumsi, bukan skor *training* saja). Perlakukan setiap slot submisi sebagai sumber daya berharga, bukan sesuatu yang dipakai untuk coba-coba.
+- **Eksekutor v2: Claude Code dengan model Opus 4.8, effort xhigh** (bukan Fable 5 lagi). Baseline dan konteks dasar sudah diketahui dari v1, jadi tidak perlu eksplorasi seliar sesi pertama, fokus pada efisiensi token dan keputusan yang terarah.
 
-### 3.1 Lokal (untuk pengembangan/eksplorasi)
+## 3. Rencana Kandidat: `Datathon_Task_1_Kaggle_Notebook_Plan.md`
+
+Ada satu berkas rencana tambahan, `Datathon_Task_1_Kaggle_Notebook_Plan.md`, dihasilkan oleh model lain (GPT 5.6 Sol, *max effort*), **tidak berbasis pada v1**. Rencana ini jauh lebih ambisius: baseline *mean-reversion* + model residual Graph-STID (utama) + Compact Graph WaveNet (penantang) + fitur teks opsional + *ensemble* per horizon, dengan alur kerja *test-driven development* (pytest) dan tiga mode eksekusi (`smoke`/`cv`/`final`).
+
+**Status rencana ini: kandidat kuat, bukan perintah mutlak.** Boleh diimplementasikan sebagian atau seluruhnya, dengan penyesuaian berikut:
+
+- Rencana itu mengasumsikan *skill* eksternal (`superpowers:subagent-driven-development`, `superpowers:executing-plans`) yang ketersediaannya di *environment* ini tidak dipastikan. Kalau tidak tersedia, kerjakan langsung tanpa orkestrasi *subagent* formal, jangan berhenti hanya karena *skill* itu tidak ada.
+- Perangkat `pytest`/TDD boleh dipakai selama membantu korektnes dengan cepat dan murah (tensor sintetis kecil, seperti contoh pada rencana: 8 *node*, `hidden_dim=16`, 2 epoch). Jangan habiskan waktu besar untuk infrastruktur tes yang tidak esensial dalam sisa waktu 4 jam.
+- Seluruh klaim numerik pada rencana tersebut (jumlah *timestep* M1/M2, persentase nilai nol, komposisi regime test 372/168, angka *shadow leaderboard*) **berasal dari analisis agen lain dan harus diverifikasi ulang terhadap dataset lokal sebelum dipercaya**, jangan diterima mentah-mentah.
+- Bagian 13 rencana itu sendiri sudah punya jalur mundur: jika waktu tersisa kurang dari 90 menit, lewati Graph WaveNet dan fitur teks, pakai Graph-STID terbaik plus *mean-reversion* dan *ensemble* sederhana. Ikuti semangat ini, dan jangan ragu menyederhanakan lebih jauh lagi kalau situasi menuntut. Prioritas utama tetap satu: **submisi valid yang terbukti mengalahkan anchor 41.795 lewat CV asli**, bukan menyelesaikan seluruh rencana secara literal.
+
+## 4. ATURAN KERAS: Tidak Ada Training Lokal
+
+Ini aturan paling penting untuk sesi v2, tidak boleh dilanggar dalam kondisi apa pun:
+
+- **Laptop lokal tidak punya GPU.** Menjalankan *training* nyata di sana lambat dan menyebabkan *overheat*.
+- Eksekusi lokal **hanya** boleh berupa: penulisan/pemeriksaan kode, dan tes struktural/kontrak memakai data sintetis yang sangat kecil (mengikuti contoh pola rencana: beberapa *node*, dimensi kecil, satu-dua epoch), yang selesai dalam hitungan detik.
+- **Dilarang** menjalankan *notebook* dengan `RUN_MODE` apa pun (`smoke`, `cv`, `final`) memakai data kompetisi asli secara lokal, termasuk mode `smoke` sekalipun, walau itu didesain ringan di dalam rencana. Tidak ada pengecualian.
+- Seluruh *training* nyata (`smoke` untuk verifikasi awal, `cv` untuk validasi, `final` untuk model produksi) **dieksekusi manual oleh pengguna langsung di Kaggle**, bukan oleh Claude Code.
+- Karena itu, notebook harus dirancang supaya pengguna bisa menjalankan tahapan itu sendiri di Kaggle secara mandiri (lewat *switch* `CFG` seperti pada rencana), lalu melaporkan hasil/log/error kembali untuk iterasi berikutnya. Jangan mengasumsikan hasil training yang belum benar-benar dijalankan dan dilaporkan penggunanya.
+
+## 5. Struktur Data (tetap sama dari v1)
+
+### 5.1 Lokal (untuk pengembangan/eksplorasi non-training)
 
 ```
 C:\Users\riant\Downloads\datathon\
@@ -63,7 +66,7 @@ C:\Users\riant\Downloads\datathon\
         findit-v17.ipynb
 ```
 
-### 3.2 Kaggle (target eksekusi akhir, wajib dipakai di notebook final)
+### 5.2 Kaggle (target eksekusi akhir, wajib dipakai di notebook final)
 
 ```
 /kaggle/input/competitions/datathon-task-1
@@ -74,60 +77,35 @@ C:\Users\riant\Downloads\datathon\
 /kaggle/input/competitions/datathon-task-1/dataset-task1/sample_submission.csv
 ```
 
-Catatan penting: root lokal (`dataset/`) dan root Kaggle (`dataset-task1/`) punya nama folder berbeda meski isinya setara. Notebook harus mendeteksi environment secara otomatis (pola serupa `Path('/kaggle/working').exists()` pada `findit-v17.ipynb`) supaya path menyesuaikan sendiri. **Namun target akhir yang harus benar-benar berjalan adalah path Kaggle di atas.**
+Notebook harus mendeteksi environment secara otomatis dan tetap mengarah benar ke path Kaggle di atas saat dijalankan di sana.
 
-### 3.3 Deskripsi berkas
+### 5.3 Target Prediksi dan Metrik
 
-| Berkas | Isi |
-|---|---|
-| `train_speed_m1_*.npy` | Deret kecepatan kontinu, blok 1. Baris = *timestep*, kolom = 1.260 jalan. |
-| `train_speed_m2_*.npy` | Deret kecepatan kontinu, blok 2 (jalan yang sama, kemungkinan rentang waktu berbeda). |
-| `train_text_m1_*.json` | Teks peristiwa selaras dengan *timestep* blok 1. |
-| `train_text_m2_*.json` | Teks peristiwa selaras dengan *timestep* blok 2. |
-| `test_X_hist.npy` | Jendela riwayat test: satu jendela riwayat 15 *timestep* per sampel, seluruh jalan. |
-| `test_texts.json` | Teks peristiwa, satu entri per sampel test. |
-| `sample_submission.csv` | Daftar id lengkap yang harus diprediksi, terisi `0.0`. |
-| `matrix.npy` | Adjacency antar 1.260 segmen jalan. |
-| `Roads1260.json` | Geometri dan metadata per segmen (koordinat, panjang, id, dst). |
-| `active_mask.npy` | Mask boolean yang mengaitkan grid spasial penuh dengan 1.260 segmen aktif. |
+- Horizon `h5` = +20 menit, `h10` = +40 menit, `h15` = +60 menit.
+- Metrik: MSE, dirata-ratakan lintas semua sampel, horizon, dan segmen jalan.
+- Format id submisi: `test_{sample}_h{horizon}_r{road}`, urutan id pada `sample_submission.csv` wajib dipertahankan persis.
 
-Angka pada nama berkas (`_1_11160`, `_1_5039`) kemungkinan menunjukkan jumlah baris/*timestep*. **Jangan berasumsi buta soal shape, dtype, atau isi persis tiap berkas.** Semua ini harus diverifikasi lewat inspeksi langsung di awal notebook (EDA), bukan ditebak dari deskripsi ini.
+## 6. Referensi Struktur Notebook: `findit-v17.ipynb`
 
----
+Aturan gaya penulisan notebook dari v1 **tetap berlaku** untuk v2:
 
-## 4. Referensi Struktur Notebook: `findit-v17.ipynb`
+- Header `<hr>` + judul + subjudul, Daftar Isi dengan anchor, setiap bagian besar diawali/diakhiri `<hr>` + judul beranchor.
+- Narasi Indonesia yang mengalir dan menjelaskan alasan, istilah asing/teknis di-*italic*.
+- Blockquote `> ### Insights` setelah visualisasi penting di bagian EDA.
+- Kelas konfigurasi terpusat (`Settings`/`CFG`) untuk seluruh *hyperparameter*, path, dan mode eksekusi.
+- Bagian Daftar Pustaka dan penutup di akhir.
 
-Berkas `ref/findit-v17.ipynb` (kompetisi klasifikasi *face anti-spoofing*, tidak ada hubungannya secara metode dengan Task 1 ini) dipakai **murni sebagai referensi struktur, format penulisan, gaya bahasa, dan cara penyampaian**. Jangan tiru pendekatan/metodenya (DINOv3, *subject-disjoint split*, dst), itu tidak relevan untuk peramalan lalu lintas.
-
-Elemen yang wajib ditiru dari referensi:
-
-- Header notebook: `<hr>` dekoratif + judul `<h1>` + subjudul `<h3>` abu-abu.
-- Sel **Daftar Isi** di awal, dengan tautan anchor (`[Judul](#n)`) ke tiap bagian besar.
-- Setiap bagian besar diawali `<hr>` + judul `<h1>` dengan anchor `<a name="n"></a>` + `<hr>` penutup.
-- Narasi Indonesia yang mengalir dan menjelaskan alasan (bukan sekadar label kode), istilah asing/teknis di-*italic* (*training*, *forecasting*, *feature engineering*, dst).
-- Blockquote `> ### Insights` setelah visualisasi penting di bagian EDA, isinya interpretasi singkat yang menuntun keputusan berikutnya.
-- Kelas `Settings`/`CFG` terpusat di awal yang menampung seluruh *hyperparameter*, path, dan konfigurasi *run*.
-- Sel *environment check* di awal (`!nvidia-smi`, versi Python/OS).
-- Bagian **Daftar Pustaka** dan **Thanks** di akhir.
-
-Alur besar bagian (sesuaikan judul dengan konteks peramalan lalu lintas, bukan disalin literal):
-
-Pendahuluan -> Inisialisasi (environment, instalasi, *imports*, *seed*, `Settings`, deteksi path) -> Analisis Data Eksploratif -> Prapemrosesan/*Feature Engineering* -> Pemodelan -> Inferensi dan Submisi -> Pasca-Analisis -> Daftar Pustaka.
-
----
-
-## 5. Aturan Wajib untuk Notebook Final
+## 7. Aturan Wajib untuk Notebook Final
 
 1. Seluruh narasi markdown berbahasa Indonesia.
-2. **Tidak boleh ada karakter em dash ("—") di mana pun**, baik di sel markdown maupun komentar/*docstring* kode. Gunakan tanda hubung biasa ("-"), koma, atau kalimat baru.
-3. Istilah asing/teknis ditulis *italic* mengikuti konvensi referensi.
-4. Notebook harus bisa dieksekusi penuh dengan **Run All** langsung di Kaggle, GPU T4x2, memakai path Kaggle pada bagian 3.2.
+2. **Tidak boleh ada karakter em dash ("—") di mana pun**, baik markdown maupun komentar/*docstring* kode.
+3. Istilah asing/teknis ditulis *italic*.
+4. Notebook harus bisa dieksekusi penuh dengan Run All di Kaggle GPU T4x2, memakai path Kaggle pada bagian 5.2.
 5. Output akhir: satu `submission.csv` sesuai format `sample_submission.csv`, urutan id dipertahankan persis.
-6. **Satu berkas notebook (`.ipynb`) saja** sebagai keluaran, siap pakai.
+6. **Satu berkas notebook (`.ipynb`) saja** sebagai keluaran utama yang siap dijalankan di Kaggle. Berkas pendukung (tes, hasil CV, dsb.) boleh ada sebagai artefak kerja, tapi deliverable utamanya tetap satu notebook.
 
----
+## 8. Prinsip Kompetisi
 
-## 6. Prinsip Kompetisi dari Pengalaman Sebelumnya
-
-- Jangan memilih submisi final murni berdasarkan skor *public leaderboard*. Pertimbangkan validasi yang stabil dan masuk akal secara metodologis, ini adalah data deret waktu, jadi validasi berbasis waktu (bukan *split* acak) jauh lebih jujur untuk mengukur performa nyata.
-- Dalam anggaran waktu ketat, keandalan (pendekatan yang pasti selesai dan menghasilkan submisi valid) lebih bernilai daripada kompleksitas yang belum tentu sempat dieksekusi dan divalidasi dengan baik.
+- Jangan memilih submisi final murni berdasarkan skor *public leaderboard*. Pakai validasi berbasis waktu (bukan *split* acak) karena ini data deret waktu.
+- Dalam anggaran waktu dan submisi yang sangat ketat sekarang, **keandalan lebih bernilai daripada kompleksitas**. Satu perbaikan yang terbukti dan teruji lebih baik daripada arsitektur ambisius yang belum tervalidasi penuh.
+- **Setiap kandidat submisi baru wajib melewati gerbang validasi eksplisit** (mengalahkan anchor 41.795 secara meyakinkan lewat CV asli dari hasil run Kaggle, bukan cuma skor training) sebelum dipakai memakai salah satu dari 4 slot submisi yang tersisa.
