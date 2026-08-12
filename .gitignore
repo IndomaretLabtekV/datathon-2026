@@ -1,8 +1,32 @@
-# Reference
-ref/
+# Competition data
+dataset/*
+!dataset/README.md
 
-# Submission
+# Generated artifacts
+outputs/
 submission.csv
+submission_*.csv
+final_*.txt
+*.log
 
-# Dataset
-dataset/
+# Jupyter / Python
+.ipynb_checkpoints/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local scratch / agent files
+.omo/
+ref/
+papers/
