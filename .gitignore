@@ -1,6 +1,6 @@
 # Competition data
-dataset/*
-!dataset/README.md
+**/dataset/*
+!**/dataset/README.md
 
 # Generated artifacts
 outputs/
